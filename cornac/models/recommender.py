@@ -273,13 +273,17 @@ class Recommender:
             all_item_scores[: self.train_set.num_items] = known_item_scores
 
         # rank items based on their scores
-        if item_indices is None:
-            item_scores = all_item_scores[: self.train_set.num_items]
-            item_rank = item_scores.argsort()[::-1]
-        else:
-            item_scores = all_item_scores[: len(item_indices)]
-            item_rank = item_scores.argsort()[::-1]
-            item_scores = item_scores[item_indices]
+        # if item_indices is None:
+        #     item_scores = all_item_scores[: self.train_set.num_items]
+        #     item_rank = item_scores.argsort()[::-1]
+        # else:
+        #     # item_scores = all_item_scores[: len(item_indices)]
+        #     item_rank = all_item_scores.argsort()[::-1]
+        #     item_scores = all_item_scores[item_indices]
+
+        # A list of candidate item indices to be ranked based on their scores
+        item_scores = all_item_scores[item_indices]
+        item_rank = item_scores.argsort()[::-1]
 
         return item_rank, item_scores
 

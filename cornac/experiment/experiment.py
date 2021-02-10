@@ -121,15 +121,15 @@ class Experiment:
     def run(self):
         """Run the Cornac experiment"""
         self._create_result()
-        
+        metrics_by_models = {}
         for model in self.models:
-            test_result, val_result = self.eval_method.evaluate(
+            test_result, val_result, test_result_point_wise_user_item_scores, val_result_point_wise_user_item_scores = self.eval_method.evaluate(
                 model=model,
                 metrics=self.metrics,
                 user_based=self.user_based,
                 show_validation=self.show_validation,
             )
-
+            metrics_by_models[model] = [test_result, val_result, test_result_point_wise_user_item_scores, val_result_point_wise_user_item_scores]
             self.result.append(test_result)
             if self.val_result is not None:
                 self.val_result.append(val_result)
@@ -137,15 +137,16 @@ class Experiment:
             if not isinstance(self.result, CVExperimentResult):
                 model.save(self.save_dir)
 
-        output = ""
-        if self.val_result is not None:
-            output += "\nVALIDATION:\n...\n{}".format(self.val_result)
-        output += "\nTEST:\n...\n{}".format(self.result)
-
-        print(output)
-
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
-        save_dir = "." if self.save_dir is None else self.save_dir
-        output_file = os.path.join(save_dir, "CornacExp-{}.log".format(timestamp))
-        with open(output_file, "w") as f:
-            f.write(output)
+        # output = ""
+        # if self.val_result is not None:
+        #     output += "\nVALIDATION:\n...\n{}".format(self.val_result)
+        # output += "\nTEST:\n...\n{}".format(self.result)
+        #
+        # print(output)
+        #
+        # timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
+        # save_dir = "." if self.save_dir is None else self.save_dir
+        # output_file = os.path.join(save_dir, "CornacExp-{}.log".format(timestamp))
+        # with open(output_file, "w") as f:
+        #     f.write(output)
+        return self.models, metrics_by_models

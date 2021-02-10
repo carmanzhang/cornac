@@ -44,11 +44,14 @@ wbpr = cornac.models.WBPR(
 # Use AUC and Recall@20 for evaluation
 auc = cornac.metrics.AUC()
 rec_20 = cornac.metrics.Recall(k=20)
+ndcg = cornac.metrics.NDCG()
+map = cornac.metrics.MAP()
+mrr = cornac.metrics.MRR()
 
 # Put everything together into an experiment and run it
 cornac.Experiment(
     eval_method=ratio_split,
     models=[most_pop, bpr, wbpr],
-    metrics=[auc, rec_20],
+    metrics=[auc, rec_20, mrr, map, ndcg],
     user_based=True,
 ).run()

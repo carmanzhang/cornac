@@ -169,6 +169,7 @@ def ranking_eval(
             if rating >= rating_threshold
         ]
 
+    point_wise_user_item_scores = []
     for user_idx in tqdm(
         test_set.user_indices, desc="Ranking", disable=not verbose, miniters=100
     ):
@@ -186,26 +187,28 @@ def ranking_eval(
             else pos_items(train_mat.getrow(user_idx))
         )
 
-        u_gt_neg = np.ones(test_set.num_items, dtype=np.int)
-        u_gt_neg[test_pos_items + val_pos_items + train_pos_items] = 0
+        # u_gt_neg = np.ones(test_set.num_items, dtype=np.int)
+        # u_gt_neg[test_pos_items + val_pos_items + train_pos_items] = 0
 
-        item_indices = None if exclude_unknowns else np.arange(test_set.num_items)
-        item_rank, item_scores = model.rank(user_idx, item_indices)
+        # item_indices = None if exclude_unknowns else np.arange(test_set.num_items)
+        item_indices = test_pos_items
+        _, item_scores = model.rank(user_idx, item_indices)
+        point_wise_user_item_scores.append([user_idx, item_indices, item_scores])
 
-        for i, mt in enumerate(metrics):
-            mt_score = mt.compute(
-                gt_pos=u_gt_pos,
-                gt_neg=u_gt_neg,
-                pd_rank=item_rank,
-                pd_scores=item_scores,
-            )
-            user_results[i][user_idx] = mt_score
+    #     for i, mt in enumerate(metrics):
+    #         mt_score = mt.compute(
+    #             gt_pos=u_gt_pos,
+    #             gt_neg=u_gt_neg,
+    #             pd_rank=item_rank,
+    #             pd_scores=item_scores,
+    #         )
+    #         user_results[i][user_idx] = mt_score
+    #
+    # # avg results of ranking metrics
+    # for i, mt in enumerate(metrics):
+    #     avg_results.append(sum(user_results[i].values()) / len(user_results[i]))
 
-    # avg results of ranking metrics
-    for i, mt in enumerate(metrics):
-        avg_results.append(sum(user_results[i].values()) / len(user_results[i]))
-
-    return avg_results, user_results
+    return avg_results, user_results, point_wise_user_item_scores
 
 
 class BaseMethod:
@@ -537,18 +540,18 @@ class BaseMethod:
         metric_avg_results = OrderedDict()
         metric_user_results = OrderedDict()
 
-        avg_results, user_results = rating_eval(
-            model=model,
-            metrics=self.rating_metrics,
-            test_set=test_set,
-            user_based=user_based,
-            verbose=self.verbose,
-        )
-        for i, mt in enumerate(self.rating_metrics):
-            metric_avg_results[mt.name] = avg_results[i]
-            metric_user_results[mt.name] = user_results[i]
+        # avg_results, user_results = rating_eval(
+        #     model=model,
+        #     metrics=self.rating_metrics,
+        #     test_set=test_set,
+        #     user_based=user_based,
+        #     verbose=self.verbose,
+        # )
+        # for i, mt in enumerate(self.rating_metrics):
+        #     metric_avg_results[mt.name] = avg_results[i]
+        #     metric_user_results[mt.name] = user_results[i]
 
-        avg_results, user_results = ranking_eval(
+        avg_results, user_results, point_wise_user_item_scores = ranking_eval(
             model=model,
             metrics=self.ranking_metrics,
             train_set=self.train_set,
@@ -558,11 +561,11 @@ class BaseMethod:
             exclude_unknowns=self.exclude_unknowns,
             verbose=self.verbose,
         )
-        for i, mt in enumerate(self.ranking_metrics):
-            metric_avg_results[mt.name] = avg_results[i]
-            metric_user_results[mt.name] = user_results[i]
+        # for i, mt in enumerate(self.ranking_metrics):
+        #     metric_avg_results[mt.name] = avg_results[i]
+        #     metric_user_results[mt.name] = user_results[i]
 
-        return Result(model.name, metric_avg_results, metric_user_results)
+        return Result(model.name, metric_avg_results, metric_user_results), point_wise_user_item_scores
 
     def evaluate(self, model, metrics, user_based, show_validation=True):
         """Evaluate given models according to given metrics
@@ -612,7 +615,8 @@ class BaseMethod:
             print("\n[{}] Evaluation started!".format(model.name))
 
         start = time.time()
-        test_result = self._eval(
+        test_result_point_wise_user_item_scores = None
+        test_result, test_result_point_wise_user_item_scores = self._eval(
             model=model,
             test_set=self.test_set,
             val_set=self.val_set,
@@ -623,15 +627,16 @@ class BaseMethod:
         test_result.metric_avg_results["Test (s)"] = test_time
 
         val_result = None
+        val_result_point_wise_user_item_scores = None
         if show_validation and self.val_set is not None:
             start = time.time()
-            val_result = self._eval(
+            val_result, val_result_point_wise_user_item_scores = self._eval(
                 model=model, test_set=self.val_set, val_set=None, user_based=user_based
             )
             val_time = time.time() - start
             val_result.metric_avg_results["Time (s)"] = val_time
 
-        return test_result, val_result
+        return test_result, val_result, test_result_point_wise_user_item_scores, val_result_point_wise_user_item_scores
 
     @classmethod
     def from_splits(
